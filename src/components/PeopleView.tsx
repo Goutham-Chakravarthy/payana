@@ -13,6 +13,7 @@ interface PeopleViewProps {
   onSetViewingUser: (id: string) => void;
   onToggleStatus: (settlementId: string) => void;
   viewingUserId: string | null;
+  isReadOnly?: boolean;
 }
 
 export const PeopleView: React.FC<PeopleViewProps> = ({
@@ -22,6 +23,7 @@ export const PeopleView: React.FC<PeopleViewProps> = ({
   onSetViewingUser,
   onToggleStatus,
   viewingUserId,
+  isReadOnly = false,
 }) => {
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
 
@@ -150,6 +152,7 @@ export const PeopleView: React.FC<PeopleViewProps> = ({
           onClose={() => setSelectedParticipant(null)}
           onSetViewingUser={onSetViewingUser}
           onToggleStatus={onToggleStatus}
+          isReadOnly={isReadOnly}
         />
       )}
     </div>

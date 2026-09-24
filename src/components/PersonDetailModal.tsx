@@ -13,6 +13,7 @@ interface PersonDetailModalProps {
   onClose: () => void;
   onSetViewingUser: (id: string) => void;
   onToggleStatus: (settlementId: string) => void;
+  isReadOnly?: boolean;
 }
 
 export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
@@ -23,6 +24,7 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
   onClose,
   onSetViewingUser,
   onToggleStatus,
+  isReadOnly = false,
 }) => {
   if (!participant || !balance) return null;
 
@@ -161,12 +163,34 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                         <span className="text-sm sm:text-base font-bold text-zinc-950">
                           {formatINR(s.amountPaise)}
                         </span>
-                        <button
-                          onClick={() => onToggleStatus(s.id)}
-                          className="px-2.5 py-1 rounded-md text-xs font-semibold bg-zinc-900 text-white cursor-pointer hover:bg-zinc-800"
-                        >
-                          {isPaid ? 'Paid ✓' : 'Mark Paid'}
-                        </button>
+                        {isReadOnly ? (
+                          <span
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 ${
+                              isPaid
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {isPaid ? (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Paid</span>
+                              </>
+                            ) : (
+                              <>
+                                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Pending</span>
+                              </>
+                            )}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => onToggleStatus(s.id)}
+                            className="px-2.5 py-1 rounded-md text-xs font-semibold bg-zinc-900 text-white cursor-pointer hover:bg-zinc-800"
+                          >
+                            {isPaid ? 'Paid ✓' : 'Mark Paid'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -198,12 +222,31 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                         <span className="text-sm sm:text-base font-bold text-emerald-700">
                           {formatINR(s.amountPaise)}
                         </span>
-                        <button
-                          onClick={() => onToggleStatus(s.id)}
-                          className="px-2.5 py-1 rounded-md text-xs font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200 cursor-pointer hover:bg-zinc-200"
-                        >
-                          {isPaid ? 'Received ✓' : 'Mark Received'}
-                        </button>
+                        {isReadOnly ? (
+                          <span
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 ${
+                              isPaid
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-zinc-100 text-zinc-600'
+                            }`}
+                          >
+                            {isPaid ? (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Received</span>
+                              </>
+                            ) : (
+                              <span>Pending</span>
+                            )}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => onToggleStatus(s.id)}
+                            className="px-2.5 py-1 rounded-md text-xs font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200 cursor-pointer hover:bg-zinc-200"
+                          >
+                            {isPaid ? 'Received ✓' : 'Mark Received'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

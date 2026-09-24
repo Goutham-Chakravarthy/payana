@@ -28,6 +28,7 @@ import {
   clearAllDataInSupabase,
   subscribeToRealtime,
 } from './lib/supabase';
+import { isUrlViewerMode, getStoredAdminStatus, setStoredAdminStatus } from './lib/auth';
 import { Navbar } from './components/Navbar';
 import { PersonalSummary } from './components/PersonalSummary';
 import { SettlementView } from './components/SettlementView';
@@ -36,10 +37,21 @@ import { BillsView } from './components/BillsView';
 import { TripBudgetSummary } from './components/TripBudgetSummary';
 import { AddBillModal } from './components/AddBillModal';
 import { EditBillModal } from './components/EditBillModal';
+import { AdminLoginModal } from './components/AdminLoginModal';
 import { ArrowRightLeft, Users, Receipt } from 'lucide-react';
 
 export default function App() {
-  // 1. State
+  // 1. Auth & Mode State
+  const isViewerUrl = isUrlViewerMode();
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    if (isViewerUrl) return false;
+    return getStoredAdminStatus();
+  });
+  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
+
+  const isReadOnly = isViewerUrl || !isAdmin;
+
+  // 2. Data State
   const [bills, setBills] = useState<Bill[]>(() => loadBills());
   const [savedSettlements, setSavedSettlements] = useState<Settlement[]>(() =>
     loadSettlements()
@@ -52,10 +64,21 @@ export default function App() {
   );
   const [isLiveSyncActive, setIsLiveSyncActive] = useState(isSupabaseConfigured);
 
-  // 2. Navigation & Modal states
+  // 3. Navigation & Modal states
   const [activeTab, setActiveTab] = useState<'settle' | 'people' | 'bills'>('settle');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
+
+  const handleAdminLoginSuccess = () => {
+    setStoredAdminStatus(true);
+    setIsAdmin(true);
+    setIsAdminLoginOpen(false);
+  };
+
+  const handleLogoutAdmin = () => {
+    setStoredAdminStatus(false);
+    setIsAdmin(false);
+  };
 
   // 3. Supabase Initial Data Fetch & Realtime Sync
   const refreshRemoteData = useCallback(async () => {
@@ -68,12 +91,30 @@ export default function App() {
       ]);
 
       if (Array.isArray(remoteBills)) {
-        setBills(remoteBills);
-        saveBills(remoteBills);
+        if (remoteBills.length > 0) {
+          setBills(remoteBills);
+          saveBills(remoteBills);
+        } else {
+          // If remote is currently empty, push existing local bills to Supabase cloud
+          const localBills = loadBills();
+          if (localBills.length > 0) {
+            console.log('[Supabase] Initializing remote database with local bills...');
+            for (const b of localBills) {
+              await saveBill(b);
+            }
+          }
+        }
       }
       if (Array.isArray(remoteSettlements) && remoteSettlements.length > 0) {
         setSavedSettlements(remoteSettlements);
         saveSettlements(remoteSettlements);
+      } else {
+        const localSettlements = loadSettlements();
+        if (localSettlements.length > 0) {
+          for (const s of localSettlements) {
+            await saveSettlement(s);
+          }
+        }
       }
       if (typeof remoteBudget === 'number' && remoteBudget > 0) {
         setTargetBudgetPaise(remoteBudget);
@@ -238,6 +279,9 @@ export default function App() {
           onResetData={handleResetData}
           totalBillsCount={bills.length}
           isLiveSync={isLiveSyncActive}
+          isReadOnly={isReadOnly}
+          onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+          onLogoutAdmin={handleLogoutAdmin}
         />
       </div>
 
@@ -250,6 +294,7 @@ export default function App() {
           balances={balances}
           settlements={settlements}
           onToggleStatus={handleToggleSettlementStatus}
+          isReadOnly={isReadOnly}
         />
 
         {/* Tab Navigation */}
@@ -315,6 +360,7 @@ export default function App() {
             balances={balances}
             onToggleStatus={handleToggleSettlementStatus}
             viewingUserId={viewingUserId}
+            isReadOnly={isReadOnly}
           />
         )}
 
@@ -326,6 +372,7 @@ export default function App() {
             onSetViewingUser={handleSelectViewingUser}
             onToggleStatus={handleToggleSettlementStatus}
             viewingUserId={viewingUserId}
+            isReadOnly={isReadOnly}
           />
         )}
 
@@ -335,6 +382,7 @@ export default function App() {
             onOpenAddBill={() => setIsAddModalOpen(true)}
             onEditBill={(bill) => setEditingBill(bill)}
             onDeleteBill={handleDeleteBill}
+            isReadOnly={isReadOnly}
           />
         )}
 
@@ -345,6 +393,7 @@ export default function App() {
           settlements={settlements}
           targetBudgetPaise={targetBudgetPaise}
           onUpdateBudget={handleUpdateBudget}
+          isReadOnly={isReadOnly}
         />
       </main>
 
@@ -376,6 +425,13 @@ export default function App() {
           onUpdateBill={handleUpdateBill}
         />
       )}
+
+      {/* Admin Passcode Login Modal */}
+      <AdminLoginModal
+        isOpen={isAdminLoginOpen}
+        onClose={() => setIsAdminLoginOpen(false)}
+        onSuccess={handleAdminLoginSuccess}
+      />
     </div>
   );
 }

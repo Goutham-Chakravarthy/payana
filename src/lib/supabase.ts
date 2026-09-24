@@ -35,17 +35,28 @@ function mapDbToBill(row: any): Bill {
   };
 }
 
+function formatDateForDb(dateStr?: string | null): string {
+  if (!dateStr) return new Date().toISOString().split('T')[0];
+  try {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().split('T')[0];
+    }
+  } catch {}
+  return new Date().toISOString().split('T')[0];
+}
+
 function mapBillToDb(bill: Bill) {
   return {
-    id: bill.id,
-    title: bill.title,
-    amount_paise: bill.amountPaise,
-    merchant: bill.merchant,
-    bill_date: bill.billDate,
+    id: bill.id || `bill_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    title: (bill.title || bill.merchant || 'Expense').trim(),
+    amount_paise: Math.round(Number(bill.amountPaise) || 0),
+    merchant: (bill.merchant || bill.title || 'General').trim(),
+    bill_date: formatDateForDb(bill.billDate),
     bill_image: bill.billImage || null,
-    paid_by: bill.paidBy,
-    participants: bill.participants,
-    shares: bill.shares,
+    paid_by: bill.paidBy || 'gouthu',
+    participants: Array.isArray(bill.participants) ? bill.participants : [],
+    shares: typeof bill.shares === 'object' && bill.shares !== null ? bill.shares : {},
     created_at: bill.createdAt || new Date().toISOString(),
   };
 }
@@ -87,7 +98,10 @@ export async function fetchBills(): Promise<Bill[]> {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.warn('[Supabase] Failed to fetch bills:', error.message);
+      console.warn('[Supabase] Failed to fetch bills:', error.message, error.details || '');
+      if (error.code === '42P01' || error.message.includes('relation "public.bills" does not exist')) {
+        console.error('🚨 [Supabase Action Required] The "bills" table does not exist in your Supabase database yet. Please run supabase_schema.sql in your Supabase SQL Editor.');
+      }
       return [];
     }
     return (data || []).map(mapDbToBill);
@@ -103,7 +117,10 @@ export async function saveBill(bill: Bill): Promise<boolean> {
     const payload = mapBillToDb(bill);
     const { error } = await supabase.from('bills').upsert(payload);
     if (error) {
-      console.error('[Supabase] Failed to save bill:', error.message);
+      console.error('[Supabase] Failed to save bill:', error.message, error.details || '');
+      if (error.code === '42501' || error.message.includes('row-level security')) {
+        console.error('🚨 [Supabase Action Required] Row Level Security blocked the insert. Please run the RLS policies from supabase_schema.sql in Supabase SQL Editor.');
+      }
       return false;
     }
     return true;
