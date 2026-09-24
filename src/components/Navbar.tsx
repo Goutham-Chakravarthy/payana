@@ -41,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-30 bg-white/40 backdrop-blur-xl saturate-180 border-b border-white/50 shadow-[0_4px_24px_rgba(0,0,0,0.04)] transition-all">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+      44:       <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex flex-wrap items-center justify-between gap-3">
         {/* Brand Logo & Mode Badge */}
         <div className="flex items-center gap-3">
           <img
@@ -83,7 +83,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onChange={(e) =>
                   onSelectViewingUser(e.target.value === 'all' ? null : e.target.value)
                 }
-                className="bg-transparent font-semibold text-zinc-900 focus:outline-none cursor-pointer pr-1 text-xs"
+                className="bg-transparent font-semibold text-zinc-900 focus:outline-none cursor-pointer pr-1 text-xs max-w-[140px]"
               >
                 <option value="all">Group Overview</option>
                 <optgroup label="Participants (Alphabetical)">
@@ -122,10 +122,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Add Bill Button (Admin Only) */}
               <button
                 onClick={onOpenAddBill}
-                className="inline-flex items-center gap-1.5 bg-zinc-950/90 hover:bg-zinc-900 backdrop-blur-md text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-xl transition-all shadow-sm hover:shadow active:scale-[0.98] cursor-pointer"
+                className="inline-flex items-center gap-1.5 bg-zinc-950/90 hover:bg-zinc-900 backdrop-blur-md text-white text-xs sm:text-sm font-semibold px-2.5 sm:px-4 py-2 rounded-xl transition-all shadow-sm hover:shadow active:scale-[0.98] cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                <span>Add Bill</span>
+                <span className="hidden sm:inline">Add Bill</span>
               </button>
             </>
           )}
