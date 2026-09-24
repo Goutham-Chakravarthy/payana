@@ -28,7 +28,7 @@ import {
   clearAllDataInSupabase,
   subscribeToRealtime,
 } from './lib/supabase';
-import { isUrlViewerMode, getStoredAdminStatus, setStoredAdminStatus } from './lib/auth';
+import { isUrlAdminMode, isUrlViewerMode, getStoredAdminStatus, setStoredAdminStatus } from './lib/auth';
 import { Navbar } from './components/Navbar';
 import { PersonalSummary } from './components/PersonalSummary';
 import { SettlementView } from './components/SettlementView';
