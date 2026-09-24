@@ -13,10 +13,17 @@ export interface ParsedBillData {
 
 // Keywords prioritized for final bill payable amount
 const TOTAL_AMOUNT_PATTERNS = [
-  /(?:grand\s*total|net\s*payable|amount\s*payable|final\s*total|bill\s*total|net\s*amount)[\s:=_-]*[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
-  /(?:total\s*amount|total\s*due|balance\s*due|total\s*bill)[\s:=_-]*[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
+  // UPI & App patterns (PhonePe, GPay, Paytm, CRED)
+  /(?:paid\s*to|paying|sent\s*to|transfer\s*to|payment\s*to)[\s\S]{1,40}?[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
+  /(?:payment\s*of|paid|debited)[\s]*[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
+  /(?:amount\s*paid|txn\s*amount|transaction\s*amount)[\s:=_-]*[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
+  
+  // Traditional Bill & Receipt patterns
+  /(?:grand\s*total|net\s*payable|amount\s*payable|final\s*total|bill\s*total|net\s*amount|total\s*bill)[\s:=_-]*[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
+  /(?:total\s*amount|total\s*due|balance\s*due|total\s*food|total\s*charge)[\s:=_-]*[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
   /(?:total)[\s:=_-]*[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
-  /[₹\s]*(?:rs\.?|inr)\s*([\d,]+(?:\.\d{1,2})?)\s*(?:total|payable|only)/i,
+  /[₹\s]*(?:rs\.?|inr)\s*([\d,]+(?:\.\d{1,2})?)\s*(?:total|payable|only|\/-)/i,
+  /[₹]\s*([\d,]+(?:\.\d{1,2})?)/,
 ];
 
 // Patterns that must NOT be confused with bill amount
@@ -44,6 +51,14 @@ const GENERIC_HEADER_WORDS = [
   'token no',
   'gst in',
   'gstin',
+  'payment successful',
+  'transaction successful',
+  'completed',
+  'banking name',
+  'upi transaction id',
+  'google pay',
+  'phonepe',
+  'paytm',
 ];
 
 /**
@@ -60,7 +75,7 @@ export function parseBillText(rawText: string): ParsedBillData {
   let confidence: 'high' | 'medium' | 'low' = 'low';
 
   // 1. Extract Amount
-  // First, test explicit high-priority patterns (Grand Total, Amount Payable, etc.)
+  // First, test explicit high-priority patterns (Grand Total, Amount Payable, UPI Paid, etc.)
   for (const pattern of TOTAL_AMOUNT_PATTERNS) {
     const match = trimmed.match(pattern);
     if (match && match[1]) {
@@ -84,7 +99,10 @@ export function parseBillText(rawText: string): ParsedBillData {
         line.includes('amount payable') ||
         line.includes('net amount') ||
         line.includes('bill total') ||
-        line.includes('total:');
+        line.includes('total:') ||
+        line.includes('paid to') ||
+        line.includes('payment of') ||
+        line.includes('amount');
 
       if (isTotalLine) {
         // Extract numbers from this line
@@ -118,6 +136,23 @@ export function parseBillText(rawText: string): ParsedBillData {
           detectedAmount = numbers[numbers.length - 1];
           confidence = 'medium';
           break;
+        }
+      }
+    }
+  }
+
+  // Check currency symbol lines (₹ or Rs.)
+  if (detectedAmount === 0) {
+    for (const line of lines) {
+      if (/[₹]|(?:\brs\.?\b)|(?:\binr\b)/i.test(line)) {
+        const numbers = extractNumbersFromLine(line);
+        if (numbers.length > 0) {
+          const valid = numbers.filter((n) => isValidBillAmount(n, line));
+          if (valid.length > 0) {
+            detectedAmount = Math.max(...valid);
+            confidence = 'medium';
+            break;
+          }
         }
       }
     }

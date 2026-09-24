@@ -30,6 +30,26 @@ export type ScanProgressCallback = (stage: string, percent?: number) => void;
  * [Scanner] Merchant detected: XXXXX
  * [Scanner] Scanner result ready
  */
+let tesseractWorkerPromise: Promise<any> | null = null;
+
+/**
+ * Pre-warms the Tesseract worker in background to eliminate first-scan delays.
+ */
+export function preloadOcrWorker() {
+  if (typeof window === 'undefined') return;
+  if (!tesseractWorkerPromise) {
+    tesseractWorkerPromise = Tesseract.createWorker('eng').catch((err) => {
+      console.warn('[Scanner] Preload worker error:', err);
+      tesseractWorkerPromise = null;
+    });
+  }
+}
+
+// Automatically trigger worker warmup on load
+if (typeof window !== 'undefined') {
+  setTimeout(() => preloadOcrWorker(), 1500);
+}
+
 export async function runBillOCR(
   input: File | Blob | string,
   onProgress?: ScanProgressCallback
@@ -51,42 +71,47 @@ export async function runBillOCR(
     }
 
     console.log('[Scanner] Image loaded');
-    onProgress?.('Enhancing contrast and readability...', 25);
+    onProgress?.('Optimizing image for reading...', 20);
 
     // 2. Preprocess image (scaling, grayscale, contrast filter)
     const preprocessed: PreprocessedImageResult = await preprocessReceiptImage(rawDataUrl);
 
     console.log('[Scanner] OCR started');
-    onProgress?.('Scanning your bill... Reading the text', 40);
+    onProgress?.('Initializing OCR engine...', 35);
 
     let rawOcrText = '';
 
-
-    // 3. Run OCR (Tesseract client-side with timeout fallback to Server AI)
+    // 3. Run OCR (Tesseract client-side with generous 45s cold-start timeout)
     try {
-      // Race Tesseract with a timeout to avoid freezing on heavy devices
-      const tesseractPromise = Tesseract.recognize(
-        preprocessed.processedDataUrl,
-        'eng',
-        {
-          logger: (m) => {
-            if (m.status === 'recognizing text' && m.progress) {
-              const progressPct = Math.round(40 + m.progress * 40);
-              onProgress?.('Scanning your bill... Reading the amount', progressPct);
-            }
-          },
-        }
+      const tesseractPromise = (async () => {
+        // Use recognize directly which downloads/caches language models smoothly
+        const res = await Tesseract.recognize(
+          preprocessed.processedDataUrl,
+          'eng',
+          {
+            logger: (m) => {
+              if (m.status === 'loading tesseract core') {
+                onProgress?.('Loading OCR engine...', 40);
+              } else if (m.status === 'loading language traineddata') {
+                onProgress?.('Loading language models...', 55);
+              } else if (m.status === 'recognizing text') {
+                const progressPct = Math.round(60 + (m.progress || 0) * 35);
+                onProgress?.('Reading receipt text & amount...', Math.min(progressPct, 95));
+              }
+            },
+          }
+        );
+        return res.data?.text || '';
+      })();
+
+      // 45s timeout for cold start downloads on slow networks
+      const timeoutPromise = new Promise<string>((_, reject) =>
+        setTimeout(() => reject(new Error('OCR processing timed out. Please try again.')), 45000)
       );
 
-      // 10s timeout for local wasm OCR before trying server
-      const timeoutPromise = new Promise<{ data: { text: string } }>((_, reject) =>
-        setTimeout(() => reject(new Error('OCR timeout')), 10000)
-      );
-
-      const ocrResult = await Promise.race([tesseractPromise, timeoutPromise]);
-      rawOcrText = ocrResult.data.text || '';
+      rawOcrText = await Promise.race([tesseractPromise, timeoutPromise]);
     } catch (ocrErr: any) {
-      console.warn('[Scanner] Local OCR fallback triggered:', ocrErr?.message);
+      console.warn('[Scanner] Local OCR warning/fallback:', ocrErr?.message);
     }
 
     console.log('[Scanner] OCR completed');
@@ -95,7 +120,23 @@ export async function runBillOCR(
     // 4. Parse text using our domain parser
     let parsed = parseBillText(rawOcrText);
 
-
+    // If initial pass didn't find an amount and raw text length was small, attempt fallback pass on original image
+    if (parsed.amount <= 0 && preprocessed.originalDataUrl !== preprocessed.processedDataUrl) {
+      try {
+        console.log('[Scanner] Attempting secondary pass on original image...');
+        const secondaryRes = await Tesseract.recognize(preprocessed.originalDataUrl, 'eng');
+        const secondaryText = secondaryRes.data?.text || '';
+        if (secondaryText.length > 0) {
+          const secondaryParsed = parseBillText(secondaryText);
+          if (secondaryParsed.amount > 0) {
+            parsed = secondaryParsed;
+            rawOcrText = `${rawOcrText}\n${secondaryText}`;
+          }
+        }
+      } catch {
+        // Ignore secondary pass errors
+      }
+    }
 
     console.log(`[Scanner] Amount detected: ₹${parsed.amount}`);
     console.log(`[Scanner] Merchant detected: ${parsed.merchant}`);
@@ -107,8 +148,8 @@ export async function runBillOCR(
       merchant: parsed.merchant,
       amount: parsed.amount,
       date: parsed.date,
-      rawText: parsed.rawText,
-      originalImage: preprocessed.originalDataUrl,
+      rawText: parsed.rawText || rawOcrText,
+      originalImage: preprocessed.processedDataUrl || preprocessed.originalDataUrl,
       confidence: parsed.confidence,
     };
   } catch (err: any) {
