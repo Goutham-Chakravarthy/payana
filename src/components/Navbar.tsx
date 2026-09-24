@@ -97,37 +97,28 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Share Viewer Link Button (Always accessible or for Admin) */}
-          <button
-            onClick={handleCopyShareLink}
-            title="Copy read-only group viewer link"
-            className="flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 text-xs font-semibold text-zinc-700 hover:text-zinc-950 bg-white/60 hover:bg-white/90 backdrop-blur-md rounded-xl transition-all border border-white/80 shadow-xs cursor-pointer"
-          >
-            {copiedLink ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="text-emerald-700 font-bold hidden sm:inline">Link Copied!</span>
-              </>
-            ) : (
-              <>
-                <Share2 className="w-3.5 h-3.5 text-zinc-500" />
-                <span className="hidden sm:inline">Share Link</span>
-              </>
-            )}
-          </button>
-
-          {isReadOnly ? (
-            /* Unlock Organizer Access button */
-            <button
-              onClick={onOpenAdminLogin}
-              title="Organizer login (unlock editing & payment approvals)"
-              className="flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 text-xs font-semibold text-zinc-700 hover:text-zinc-950 bg-white/60 hover:bg-white/90 backdrop-blur-md rounded-xl transition-all border border-white/80 shadow-xs cursor-pointer"
-            >
-              <Lock className="w-3.5 h-3.5 text-zinc-500" />
-              <span className="hidden sm:inline">Organizer</span>
-            </button>
-          ) : (
+          {/* Organizer-Only Action Controls */}
+          {!isReadOnly && (
             <>
+              {/* Share Viewer Link Button (For Organizer to copy group link) */}
+              <button
+                onClick={handleCopyShareLink}
+                title="Copy read-only group viewer link"
+                className="flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 text-xs font-semibold text-zinc-700 hover:text-zinc-950 bg-white/60 hover:bg-white/90 backdrop-blur-md rounded-xl transition-all border border-white/80 shadow-xs cursor-pointer"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700 font-bold hidden sm:inline">Link Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-3.5 h-3.5 text-zinc-500" />
+                    <span className="hidden sm:inline">Share Link</span>
+                  </>
+                )}
+              </button>
+
               {/* Reset button (Admin Only) */}
               <button
                 onClick={onResetData}
