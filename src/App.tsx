@@ -41,15 +41,10 @@ import { AdminLoginModal } from './components/AdminLoginModal';
 import { ArrowRightLeft, Users, Receipt } from 'lucide-react';
 
 export default function App() {
-  // 1. Auth & Mode State
-  const isViewerUrl = isUrlViewerMode();
-  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
-    if (isViewerUrl) return false;
-    return getStoredAdminStatus();
-  });
+  // 1. Auth & Mode State: Root URL / and ?mode=view are identical Read-Only Viewer Mode
+  const isAdmin = isUrlAdminMode();
+  const isReadOnly = !isAdmin;
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
-
-  const isReadOnly = isViewerUrl || !isAdmin;
 
   // 2. Data State
   const [bills, setBills] = useState<Bill[]>(() => loadBills());
