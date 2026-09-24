@@ -66,7 +66,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                   setPasscode(e.target.value);
                   if (error) setError(false);
                 }}
-                placeholder="Enter passcode (e.g. payana)"
+                placeholder="Enter organizer passcode"
                 autoFocus
                 className={`w-full pl-9 pr-3 py-2 rounded-xl text-sm border focus:outline-none transition-all ${
                   error
@@ -77,7 +77,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
             </div>
             {error && (
               <p className="text-[11px] text-rose-600 font-medium mt-1">
-                Incorrect passcode. (Default: <code className="font-mono bg-zinc-100 px-1 py-0.5 rounded">payana</code>)
+                Incorrect passcode. Please try again.
               </p>
             )}
           </div>

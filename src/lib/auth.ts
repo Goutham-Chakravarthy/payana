@@ -1,5 +1,5 @@
 const ADMIN_STORAGE_KEY = 'payana_admin_session_v1';
-export const DEFAULT_ADMIN_PASSCODE = 'payana';
+export const DEFAULT_ADMIN_PASSCODE = 'safari';
 
 export function isUrlViewerMode(): boolean {
   if (typeof window === 'undefined') return false;
@@ -11,7 +11,11 @@ export function isUrlAdminMode(): boolean {
   if (typeof window === 'undefined') return false;
   const params = new URLSearchParams(window.location.search);
   const adminParam = params.get('admin');
-  return adminParam === 'true' || adminParam === DEFAULT_ADMIN_PASSCODE;
+  return (
+    adminParam === 'true' ||
+    adminParam === DEFAULT_ADMIN_PASSCODE ||
+    adminParam === 'payana'
+  );
 }
 
 export function getStoredAdminStatus(): boolean {
@@ -46,7 +50,7 @@ export function setStoredAdminStatus(isAdmin: boolean): void {
 
 export function verifyAdminPasscode(input: string): boolean {
   const clean = input.trim().toLowerCase();
-  return clean === DEFAULT_ADMIN_PASSCODE || clean === '1234' || clean === 'admin';
+  return clean === DEFAULT_ADMIN_PASSCODE || clean === 'safari';
 }
 
 export function getViewerShareUrl(): string {
@@ -59,6 +63,6 @@ export function getViewerShareUrl(): string {
 export function getAdminShareUrl(): string {
   if (typeof window === 'undefined') return '';
   const url = new URL(window.location.href);
-  url.search = '?admin=payana';
+  url.search = '?admin=safari';
   return url.toString();
 }
