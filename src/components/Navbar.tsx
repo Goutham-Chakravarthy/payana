@@ -119,15 +119,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </button>
 
-              {/* Reset button (Admin Only) */}
-              <button
-                onClick={onResetData}
-                title="Clear all data (Admin)"
-                className="p-2 text-zinc-600 hover:text-zinc-900 bg-white/40 hover:bg-white/80 backdrop-blur-md rounded-xl transition-all border border-white/60 shadow-xs cursor-pointer"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-
               {/* Add Bill Button (Admin Only) */}
               <button
                 onClick={onOpenAddBill}
