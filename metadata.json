@@ -1,0 +1,8 @@
+{
+  "name": "PAYANA · Smart Bill Splitter",
+  "description": "Minimalist collaborative bill splitter with on-device OCR receipt scanning, equal split engine, and net-balance debt simplification settlement.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}
