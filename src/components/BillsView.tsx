@@ -4,13 +4,14 @@ import { getParticipant } from '../constants/participants';
 import { formatINR, formatDate } from '../lib/formatters';
 import { Avatar } from './Avatar';
 import { BillDetailModal } from './BillDetailModal';
-import { Receipt, Calendar, Store, Users, ChevronRight, Plus, Image as ImageIcon } from 'lucide-react';
+import { Receipt, Calendar, Store, ChevronRight, Plus, Image as ImageIcon } from 'lucide-react';
 
 interface BillsViewProps {
   bills: Bill[];
   onOpenAddBill: () => void;
   onEditBill: (bill: Bill) => void;
   onDeleteBill: (billId: string) => void;
+  isReadOnly?: boolean;
 }
 
 export const BillsView: React.FC<BillsViewProps> = ({
@@ -18,6 +19,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
   onOpenAddBill,
   onEditBill,
   onDeleteBill,
+  isReadOnly = false,
 }) => {
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
 
@@ -48,13 +50,15 @@ export const BillsView: React.FC<BillsViewProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={onOpenAddBill}
-            className="flex items-center gap-1.5 bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Bill</span>
-          </button>
+          {!isReadOnly && (
+            <button
+              onClick={onOpenAddBill}
+              className="flex items-center gap-1.5 bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Bill</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -64,7 +68,6 @@ export const BillsView: React.FC<BillsViewProps> = ({
           {bills.map((bill) => {
             const payer = getParticipant(bill.paidBy);
             const count = bill.participants.length;
-            const avgSharePaise = Math.round(bill.amountPaise / Math.max(count, 1));
 
             return (
               <div
@@ -104,7 +107,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
                   </div>
                 </div>
 
-                {/* Right side: Payer & Amount & Share info (Prompt Section 27) */}
+                {/* Right side: Payer & Amount & Share info */}
                 <div className="flex items-center justify-between sm:justify-end gap-5 pt-3 sm:pt-0 border-t sm:border-t-0 border-zinc-100">
                   {/* Paid By info */}
                   <div className="flex items-center gap-2">
@@ -116,16 +119,6 @@ export const BillsView: React.FC<BillsViewProps> = ({
                       <div className="text-xs font-bold text-zinc-800">
                         {payer.name}
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Share info */}
-                  <div className="text-right">
-                    <div className="text-[10px] text-zinc-400 uppercase font-semibold">
-                      {count} participants
-                    </div>
-                    <div className="text-xs font-semibold text-zinc-600">
-                      {formatINR(avgSharePaise)} each
                     </div>
                   </div>
 
@@ -151,15 +144,19 @@ export const BillsView: React.FC<BillsViewProps> = ({
             No bills added yet
           </h3>
           <p className="text-xs text-zinc-500 max-w-sm mx-auto mt-1 mb-4">
-            Scan an invoice or enter a bill to begin equal splitting and smart settlement.
+            {isReadOnly
+              ? 'The trip organizer has not added any bills yet.'
+              : 'Scan an invoice or enter a bill to begin equal splitting and smart settlement.'}
           </p>
-          <button
-            onClick={onOpenAddBill}
-            className="inline-flex items-center gap-1.5 bg-zinc-950 text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-zinc-800 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add First Bill</span>
-          </button>
+          {!isReadOnly && (
+            <button
+              onClick={onOpenAddBill}
+              className="inline-flex items-center gap-1.5 bg-zinc-950 text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-zinc-800 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add First Bill</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -170,6 +167,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
           onClose={() => setSelectedBill(null)}
           onEdit={onEditBill}
           onDelete={onDeleteBill}
+          isReadOnly={isReadOnly}
         />
       )}
     </div>

@@ -11,6 +11,7 @@ interface PersonalSummaryProps {
   balances: Record<string, ParticipantBalance>;
   settlements: Settlement[];
   onToggleStatus: (settlementId: string) => void;
+  isReadOnly?: boolean;
 }
 
 export const PersonalSummary: React.FC<PersonalSummaryProps> = ({
@@ -19,6 +20,7 @@ export const PersonalSummary: React.FC<PersonalSummaryProps> = ({
   balances,
   settlements,
   onToggleStatus,
+  isReadOnly = false,
 }) => {
   // If no single user is selected, show group quick-switch chips or prompt
   const participant = viewingUserId ? getParticipant(viewingUserId) : null;
@@ -52,11 +54,10 @@ export const PersonalSummary: React.FC<PersonalSummaryProps> = ({
           </span>
           <button
             onClick={() => onSelectUser(null)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-              viewingUserId === null
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer ${viewingUserId === null
                 ? 'bg-zinc-900 text-white shadow-xs'
                 : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-            }`}
+              }`}
           >
             All Group
           </button>
@@ -70,11 +71,10 @@ export const PersonalSummary: React.FC<PersonalSummaryProps> = ({
               <button
                 key={p.id}
                 onClick={() => onSelectUser(p.id)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all shrink-0 border cursor-pointer ${
-                  isSelected
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all shrink-0 border cursor-pointer ${isSelected
                     ? 'border-zinc-900 bg-zinc-900 text-white shadow-xs font-semibold'
                     : 'border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 text-zinc-700'
-                }`}
+                  }`}
               >
                 <div
                   className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold"
@@ -87,15 +87,14 @@ export const PersonalSummary: React.FC<PersonalSummaryProps> = ({
                 </div>
                 <span>{p.name}</span>
                 <span
-                  className={`text-[10px] ml-0.5 ${
-                    isSelected
+                  className={`text-[10px] ml-0.5 ${isSelected
                       ? 'text-zinc-300'
                       : pBalance > 0
-                      ? 'text-emerald-600 font-semibold'
-                      : pBalance < 0
-                      ? 'text-rose-600 font-semibold'
-                      : 'text-zinc-400'
-                  }`}
+                        ? 'text-emerald-600 font-semibold'
+                        : pBalance < 0
+                          ? 'text-rose-600 font-semibold'
+                          : 'text-zinc-400'
+                    }`}
                 >
                   {pBalance > 0 ? '+' : ''}
                   {Math.round(pBalance / 100)}
@@ -118,19 +117,18 @@ export const PersonalSummary: React.FC<PersonalSummaryProps> = ({
                     {participant.name}
                   </h2>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${
-                      balance.status === 'receive'
+                    className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${balance.status === 'receive'
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : balance.status === 'pay'
-                        ? 'bg-rose-50 text-rose-700 border-rose-200'
-                        : 'bg-zinc-100 text-zinc-700 border-zinc-200'
-                    }`}
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : 'bg-zinc-100 text-zinc-700 border-zinc-200'
+                      }`}
                   >
                     {balance.status === 'receive'
                       ? 'Should Receive'
                       : balance.status === 'pay'
-                      ? 'Needs to Pay'
-                      : 'Settled Up'}
+                        ? 'Needs to Pay'
+                        : 'Settled Up'}
                   </span>
                 </div>
                 <p className="text-xs text-zinc-500 mt-0.5">
@@ -146,13 +144,12 @@ export const PersonalSummary: React.FC<PersonalSummaryProps> = ({
                 Your Net Balance
               </div>
               <div
-                className={`text-2xl sm:text-3xl font-black tracking-tight ${
-                  balance.netBalancePaise > 0
+                className={`text-2xl sm:text-3xl font-black tracking-tight ${balance.netBalancePaise > 0
                     ? 'text-emerald-600'
                     : balance.netBalancePaise < 0
-                    ? 'text-rose-600'
-                    : 'text-zinc-700'
-                }`}
+                      ? 'text-rose-600'
+                      : 'text-zinc-700'
+                  }`}
               >
                 {formatINR(balance.netBalancePaise, { showSign: true })}
               </div>
@@ -174,11 +171,10 @@ export const PersonalSummary: React.FC<PersonalSummaryProps> = ({
                       return (
                         <div
                           key={s.id}
-                          className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
-                            isPaid
+                          className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${isPaid
                               ? 'bg-emerald-50/50 border-emerald-200 opacity-80'
                               : 'bg-rose-50/40 border-rose-200/80 hover:border-rose-300'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-3">
                             <Avatar participant={recipient} size="md" />
@@ -191,31 +187,50 @@ export const PersonalSummary: React.FC<PersonalSummaryProps> = ({
                               </div>
                             </div>
                           </div>
-
                           <div className="flex items-center gap-3">
                             <span className="text-lg sm:text-xl font-bold text-zinc-900">
                               {formatINR(s.amountPaise)}
                             </span>
-                            <button
-                              onClick={() => onToggleStatus(s.id)}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 ${
-                                isPaid
-                                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                  : 'bg-zinc-900 text-white hover:bg-zinc-800'
-                              }`}
-                            >
-                              {isPaid ? (
-                                <>
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  <span>Paid</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Clock className="w-3.5 h-3.5" />
-                                  <span>Mark Paid</span>
-                                </>
-                              )}
-                            </button>
+                            {isReadOnly ? (
+                              <span
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 ${isPaid
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-amber-100 text-amber-800'
+                                  }`}
+                              >
+                                {isPaid ? (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>Settled</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Pending</span>
+                                  </>
+                                )}
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => onToggleStatus(s.id)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 ${isPaid
+                                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                    : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                                  }`}
+                              >
+                                {isPaid ? (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Paid</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock className="w-3.5 h-3.5" />
+                                    <span>Mark Paid</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
@@ -242,11 +257,10 @@ export const PersonalSummary: React.FC<PersonalSummaryProps> = ({
                       return (
                         <div
                           key={s.id}
-                          className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
-                            isPaid
+                          className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${isPaid
                               ? 'bg-emerald-50/50 border-emerald-200 opacity-80'
                               : 'bg-emerald-50/20 border-emerald-200/80 hover:border-emerald-300'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-3">
                             <Avatar participant={debtor} size="md" />
@@ -264,23 +278,40 @@ export const PersonalSummary: React.FC<PersonalSummaryProps> = ({
                             <span className="text-lg sm:text-xl font-bold text-emerald-700">
                               {formatINR(s.amountPaise)}
                             </span>
-                            <button
-                              onClick={() => onToggleStatus(s.id)}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 ${
-                                isPaid
-                                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                  : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200'
-                              }`}
-                            >
-                              {isPaid ? (
-                                <>
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  <span>Received</span>
-                                </>
-                              ) : (
-                                <span>Mark as Received</span>
-                              )}
-                            </button>
+                            {isReadOnly ? (
+                              <span
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 ${isPaid
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-zinc-100 text-zinc-600'
+                                  }`}
+                              >
+                                {isPaid ? (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>Received</span>
+                                  </>
+                                ) : (
+                                  <span>Pending</span>
+                                )}
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => onToggleStatus(s.id)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 ${isPaid
+                                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                    : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200'
+                                  }`}
+                              >
+                                {isPaid ? (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Received</span>
+                                  </>
+                                ) : (
+                                  <span>Mark as Received</span>
+                                )}
+                              </button>
+                            )}
                           </div>
                         </div>
                       );

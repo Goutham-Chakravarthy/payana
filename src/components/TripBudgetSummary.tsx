@@ -24,6 +24,7 @@ interface TripBudgetSummaryProps {
   settlements: Settlement[];
   targetBudgetPaise: number;
   onUpdateBudget: (newBudgetPaise: number) => void;
+  isReadOnly?: boolean;
 }
 
 export const TripBudgetSummary: React.FC<TripBudgetSummaryProps> = ({
@@ -32,6 +33,7 @@ export const TripBudgetSummary: React.FC<TripBudgetSummaryProps> = ({
   settlements,
   targetBudgetPaise,
   onUpdateBudget,
+  isReadOnly = false,
 }) => {
   // Editing budget state
   const [isEditingBudget, setIsEditingBudget] = useState(false);
@@ -189,7 +191,7 @@ ${topPayer ? `👑 Top Upfront Payer: ${topPayer.name} (${formatINR(topPayerBala
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
                 Allocated Trip Budget
               </span>
-              {!isEditingBudget && (
+              {!isEditingBudget && !isReadOnly && (
                 <button
                   onClick={() => {
                     setBudgetInput(String(paiseToRupees(targetBudgetPaise)));

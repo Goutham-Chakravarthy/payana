@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Bill, Settlement } from './types';
 import { FIXED_PARTICIPANTS } from './constants/participants';
 import {
@@ -16,6 +16,18 @@ import {
   loadTripBudgetPaise,
   saveTripBudgetPaise,
 } from './lib/storage';
+import {
+  isSupabaseConfigured,
+  fetchBills,
+  saveBill,
+  deleteBill,
+  fetchSettlements,
+  saveSettlement,
+  fetchTripBudget,
+  saveTripBudget,
+  clearAllDataInSupabase,
+  subscribeToRealtime,
+} from './lib/supabase';
 import { Navbar } from './components/Navbar';
 import { PersonalSummary } from './components/PersonalSummary';
 import { SettlementView } from './components/SettlementView';
@@ -24,10 +36,10 @@ import { BillsView } from './components/BillsView';
 import { TripBudgetSummary } from './components/TripBudgetSummary';
 import { AddBillModal } from './components/AddBillModal';
 import { EditBillModal } from './components/EditBillModal';
-import { ArrowRightLeft, Users, Receipt, Sparkles } from 'lucide-react';
+import { ArrowRightLeft, Users, Receipt } from 'lucide-react';
 
 export default function App() {
-  // 1. Storage-backed state
+  // 1. State
   const [bills, setBills] = useState<Bill[]>(() => loadBills());
   const [savedSettlements, setSavedSettlements] = useState<Settlement[]>(() =>
     loadSettlements()
@@ -38,11 +50,61 @@ export default function App() {
   const [targetBudgetPaise, setTargetBudgetPaise] = useState<number>(() =>
     loadTripBudgetPaise()
   );
+  const [isLiveSyncActive, setIsLiveSyncActive] = useState(isSupabaseConfigured);
 
   // 2. Navigation & Modal states
   const [activeTab, setActiveTab] = useState<'settle' | 'people' | 'bills'>('settle');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
+
+  // 3. Supabase Initial Data Fetch & Realtime Sync
+  const refreshRemoteData = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      const [remoteBills, remoteSettlements, remoteBudget] = await Promise.all([
+        fetchBills(),
+        fetchSettlements(),
+        fetchTripBudget(),
+      ]);
+
+      if (Array.isArray(remoteBills)) {
+        setBills(remoteBills);
+        saveBills(remoteBills);
+      }
+      if (Array.isArray(remoteSettlements) && remoteSettlements.length > 0) {
+        setSavedSettlements(remoteSettlements);
+        saveSettlements(remoteSettlements);
+      }
+      if (typeof remoteBudget === 'number' && remoteBudget > 0) {
+        setTargetBudgetPaise(remoteBudget);
+        saveTripBudgetPaise(remoteBudget);
+      } else if (remoteBudget === null || remoteBudget === 0) {
+        const defaultBudget = 3300000;
+        setTargetBudgetPaise(defaultBudget);
+        saveTripBudgetPaise(defaultBudget);
+        saveTripBudget(defaultBudget);
+      }
+      setIsLiveSyncActive(true);
+    } catch (err) {
+      console.error('[Supabase Sync Error]', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshRemoteData();
+
+    if (!isSupabaseConfigured) return;
+
+    const channel = subscribeToRealtime(() => {
+      refreshRemoteData();
+    });
+
+    return () => {
+      if (channel) {
+        channel.unsubscribe();
+      }
+    };
+  }, [refreshRemoteData]);
 
   // Save viewing user on change
   const handleSelectViewingUser = (userId: string | null) => {
@@ -50,8 +112,7 @@ export default function App() {
     saveViewingUser(userId);
   };
 
-  // 3. Dynamic Calculation Engine (Prompt Section 21, 23, 24)
-  // Whenever bills change, instantly recalculate balances and settlement recommendations
+  // 4. Dynamic Calculation Engine
   const balances = useMemo(() => {
     return calculateNetBalances(bills, FIXED_PARTICIPANTS);
   }, [bills]);
@@ -72,62 +133,80 @@ export default function App() {
     return calculateSettlement(netEntries, totalPaidMap, savedSettlements);
   }, [balances, totalPaidMap, savedSettlements]);
 
-  // Keep saved settlements updated
+  // Keep saved settlements locally updated
   useEffect(() => {
     saveSettlements(settlements);
   }, [settlements]);
 
-  // 4. Bill management handlers
-  const handleSaveNewBill = (newBill: Bill) => {
+  // 5. Bill management handlers with Supabase syncing
+  const handleSaveNewBill = async (newBill: Bill) => {
     const updated = [newBill, ...bills];
     setBills(updated);
     saveBills(updated);
+    if (isSupabaseConfigured) {
+      await saveBill(newBill);
+    }
   };
 
-  const handleUpdateBill = (updatedBill: Bill) => {
+  const handleUpdateBill = async (updatedBill: Bill) => {
     const updated = bills.map((b) => (b.id === updatedBill.id ? updatedBill : b));
     setBills(updated);
     saveBills(updated);
+    if (isSupabaseConfigured) {
+      await saveBill(updatedBill);
+    }
   };
 
-  const handleDeleteBill = (billId: string) => {
+  const handleDeleteBill = async (billId: string) => {
     const updated = bills.filter((b) => b.id !== billId);
     setBills(updated);
     saveBills(updated);
+    if (isSupabaseConfigured) {
+      await deleteBill(billId);
+    }
   };
 
-  const handleToggleSettlementStatus = (settlementId: string) => {
+  const handleToggleSettlementStatus = async (settlementId: string) => {
+    let targetSettlement: Settlement | null = null;
     const updated = settlements.map((s) => {
       if (s.id === settlementId) {
         const nextStatus: 'paid' | 'pending' =
           s.status === 'paid' ? 'pending' : 'paid';
-        return {
+        const changed: Settlement = {
           ...s,
           status: nextStatus,
           paidAt: nextStatus === 'paid' ? new Date().toISOString() : undefined,
         };
+        targetSettlement = changed;
+        return changed;
       }
       return s;
     });
     setSavedSettlements(updated);
     saveSettlements(updated);
+
+    if (isSupabaseConfigured && targetSettlement) {
+      await saveSettlement(targetSettlement);
+    }
   };
 
-  const handleUpdateBudget = (newBudgetPaise: number) => {
+  const handleUpdateBudget = async (newBudgetPaise: number) => {
     setTargetBudgetPaise(newBudgetPaise);
     saveTripBudgetPaise(newBudgetPaise);
+    if (isSupabaseConfigured) {
+      await saveTripBudget(newBudgetPaise);
+    }
   };
 
-  const handleResetData = () => {
-    if (
-      window.confirm(
-        'Reset bills and settlements to sample trip data (Ticket ₹2,500 & Tiffin ₹1,000)?'
-      )
-    ) {
+  const handleResetData = async () => {
+    if (window.confirm('Clear all bills and settlements across the group?')) {
       const { bills: defBills, settlements: defSettlements } = resetToDefaultData();
       setBills(defBills);
       setSavedSettlements(defSettlements);
       setViewingUserId(null);
+      if (isSupabaseConfigured) {
+        await clearAllDataInSupabase();
+      }
     }
   };
 
@@ -137,19 +216,34 @@ export default function App() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-zinc-100/60 text-zinc-900 flex flex-col font-sans selection:bg-zinc-900 selection:text-white">
+    <div className="relative min-h-screen bg-zinc-100/60 text-zinc-900 flex flex-col font-sans selection:bg-zinc-900 selection:text-white">
+      {/* Background Graphic with 60% Opacity */}
+      <div
+        className="fixed inset-0 z-0 pointer-events-none select-none flex items-center justify-center opacity-60 overflow-hidden"
+        aria-hidden="true"
+      >
+        <img
+          src="/bg.png"
+          alt=""
+          className="w-full h-full max-w-4xl max-h-[85vh] object-contain"
+        />
+      </div>
+
       {/* Top Navigation */}
-      <Navbar
-        viewingUserId={viewingUserId}
-        onSelectViewingUser={handleSelectViewingUser}
-        onOpenAddBill={() => setIsAddModalOpen(true)}
-        onResetData={handleResetData}
-        totalBillsCount={bills.length}
-      />
+      <div className="relative z-10">
+        <Navbar
+          viewingUserId={viewingUserId}
+          onSelectViewingUser={handleSelectViewingUser}
+          onOpenAddBill={() => setIsAddModalOpen(true)}
+          onResetData={handleResetData}
+          totalBillsCount={bills.length}
+          isLiveSync={isLiveSyncActive}
+        />
+      </div>
 
       {/* Main Container */}
-      <main className="grow max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* Prominent Personal Answer Card (Prompt Section 18, 19, 32) */}
+      <main className="relative z-10 grow max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        {/* Prominent Personal Answer Card */}
         <PersonalSummary
           viewingUserId={viewingUserId}
           onSelectUser={handleSelectViewingUser}
@@ -244,7 +338,7 @@ export default function App() {
           />
         )}
 
-        {/* Total Trip Budget & Final Ledger (Calculated at the total last) */}
+        {/* Total Trip Budget & Final Ledger */}
         <TripBudgetSummary
           bills={bills}
           balances={balances}
@@ -255,7 +349,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-200/80 bg-white/70 py-6 text-center text-xs text-zinc-500">
+      <footer className="relative z-10 border-t border-zinc-200/80 bg-white/70 backdrop-blur-xs py-6 text-center text-xs text-zinc-500">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2 font-medium">
             <span className="font-bold text-zinc-900">PAYANA</span>

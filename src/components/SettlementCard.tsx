@@ -3,18 +3,20 @@ import { Settlement } from '../types';
 import { getParticipant } from '../constants/participants';
 import { formatINR } from '../lib/formatters';
 import { Avatar } from './Avatar';
-import { ArrowRight, Check, Clock, CheckCircle } from 'lucide-react';
+import { ArrowRight, Check, Clock, CheckCircle, ShieldCheck } from 'lucide-react';
 
 interface SettlementCardProps {
   settlement: Settlement;
-  onToggleStatus: (settlementId: string) => void;
+  onToggleStatus?: (settlementId: string) => void;
   highlightUserId?: string | null;
+  isReadOnly?: boolean;
 }
 
 export const SettlementCard: React.FC<SettlementCardProps> = ({
   settlement,
   onToggleStatus,
   highlightUserId,
+  isReadOnly = false,
 }) => {
   const fromUser = getParticipant(settlement.fromParticipantId);
   const toUser = getParticipant(settlement.toParticipantId);
@@ -46,7 +48,7 @@ export const SettlementCard: React.FC<SettlementCardProps> = ({
         >
           {isPaid ? (
             <>
-              <Check className="w-3 h-3 stroke-[2.5]" /> Paid
+              <Check className="w-3 h-3 stroke-[2.5]" /> Paid & Settled
             </>
           ) : (
             <>
@@ -102,7 +104,7 @@ export const SettlementCard: React.FC<SettlementCardProps> = ({
         </div>
       </div>
 
-      {/* The Amount - Primary Visual Focus (Prompt Section 16) */}
+      {/* The Amount */}
       <div className="my-5 text-center">
         <div className="text-3xl sm:text-4xl font-black text-zinc-950 tracking-tight">
           {formatINR(settlement.amountPaise)}
@@ -112,28 +114,44 @@ export const SettlementCard: React.FC<SettlementCardProps> = ({
         </div>
       </div>
 
-      {/* Action Button: Mark as Paid (Prompt Section 20) */}
+      {/* Action / Status Row */}
       <div className="pt-3 border-t border-zinc-100 flex items-center justify-center">
-        <button
-          onClick={() => onToggleStatus(settlement.id)}
-          className={`w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-            isPaid
-              ? 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 border border-zinc-200'
-              : 'bg-zinc-950 hover:bg-zinc-800 text-white shadow-xs hover:shadow'
-          }`}
-        >
-          {isPaid ? (
-            <>
-              <CheckCircle className="w-4 h-4 text-emerald-600" />
-              <span>Mark as Pending</span>
-            </>
-          ) : (
-            <>
-              <Check className="w-4 h-4" />
-              <span>Mark as Paid</span>
-            </>
-          )}
-        </button>
+        {isReadOnly ? (
+          <div className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-center flex items-center justify-center gap-1.5 bg-zinc-50 border border-zinc-200 text-zinc-600">
+            {isPaid ? (
+              <>
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                <span>Verified by Organizer</span>
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="w-4 h-4 text-amber-600" />
+                <span>Pending Organizer Verification</span>
+              </>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => onToggleStatus?.(settlement.id)}
+            className={`w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              isPaid
+                ? 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 border border-zinc-200'
+                : 'bg-zinc-950 hover:bg-zinc-800 text-white shadow-xs hover:shadow'
+            }`}
+          >
+            {isPaid ? (
+              <>
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                <span>Mark as Pending</span>
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                <span>Mark as Paid</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

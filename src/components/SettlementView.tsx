@@ -9,6 +9,7 @@ interface SettlementViewProps {
   balances: Record<string, ParticipantBalance>;
   onToggleStatus: (settlementId: string) => void;
   viewingUserId: string | null;
+  isReadOnly?: boolean;
 }
 
 export const SettlementView: React.FC<SettlementViewProps> = ({
@@ -16,6 +17,7 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
   balances,
   onToggleStatus,
   viewingUserId,
+  isReadOnly = false,
 }) => {
   const [filter, setFilter] = useState<'all' | 'pending' | 'paid'>('all');
 
@@ -118,6 +120,7 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
               settlement={settlement}
               onToggleStatus={onToggleStatus}
               highlightUserId={viewingUserId}
+              isReadOnly={isReadOnly}
             />
           ))}
         </div>
