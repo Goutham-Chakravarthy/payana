@@ -13,17 +13,19 @@ export interface ParsedBillData {
 
 // Keywords prioritized for final bill payable amount
 const TOTAL_AMOUNT_PATTERNS = [
+  // Fuel & Retail Total Amount / Amount Paid (e.g. Nayara, HP, Shell, Indian Oil, Bharat Petroleum)
+  /(?:total\s*amount|amount\s*paid|net\s*amount\s*paid|bill\s*amount)[\s\S]{0,35}?[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
+  /(?:grand\s*total|net\s*payable|amount\s*payable|final\s*total|bill\s*total|net\s*amount|total\s*bill)[\s\S]{0,35}?[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
+  
   // UPI & App patterns (PhonePe, GPay, Paytm, CRED)
   /(?:paid\s*to|paying|sent\s*to|transfer\s*to|payment\s*to)[\s\S]{1,40}?[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
   /(?:payment\s*of|paid|debited)[\s]*[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
   /(?:amount\s*paid|txn\s*amount|transaction\s*amount)[\s:=_-]*[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
   
-  // Traditional Bill & Receipt patterns
-  /(?:grand\s*total|net\s*payable|amount\s*payable|final\s*total|bill\s*total|net\s*amount|total\s*bill)[\s:=_-]*[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
-  /(?:total\s*amount|total\s*due|balance\s*due|total\s*food|total\s*charge)[\s:=_-]*[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
-  /(?:total)[\s:=_-]*[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
+  // Explicit Total rows
+  /(?:total\s*due|balance\s*due|total\s*food|total\s*charge)[\s:=_-]*[₹\s]*(?:rs\.?|inr)?[\s]*([\d,]+(?:\.\d{1,2})?)/i,
+  /(?:^|\n)\s*total[\s:=_\-\(₹\)]+([0-9,]+(?:\.\d{1,2})?)/i,
   /[₹\s]*(?:rs\.?|inr)\s*([\d,]+(?:\.\d{1,2})?)\s*(?:total|payable|only|\/-)/i,
-  /[₹]\s*([\d,]+(?:\.\d{1,2})?)/,
 ];
 
 // Patterns that must NOT be confused with bill amount
@@ -35,12 +37,11 @@ const TIME_PATTERN = /\b\d{1,2}:\d{2}(?::\d{2})?\b/;
 // Generic headers to ignore when detecting merchant
 const GENERIC_HEADER_WORDS = [
   'tax invoice',
-  'invoice',
+  'retail invoice',
   'cash receipt',
   'bill',
   'receipt',
   'cash memo',
-  'retail invoice',
   'estimate',
   'guest check',
   'order number',
@@ -59,6 +60,8 @@ const GENERIC_HEADER_WORDS = [
   'google pay',
   'phonepe',
   'paytm',
+  'sample - not a valid receipt',
+  'not a valid receipt',
 ];
 
 /**
@@ -74,82 +77,90 @@ export function parseBillText(rawText: string): ParsedBillData {
   let detectedAmount = 0;
   let confidence: 'high' | 'medium' | 'low' = 'low';
 
-  // 1. Extract Amount
-  // First, test explicit high-priority patterns (Grand Total, Amount Payable, UPI Paid, etc.)
-  for (const pattern of TOTAL_AMOUNT_PATTERNS) {
-    const match = trimmed.match(pattern);
-    if (match && match[1]) {
-      const cleanNumStr = match[1].replace(/,/g, '');
-      const parsed = parseFloat(cleanNumStr);
-      if (isValidBillAmount(parsed, match[0])) {
-        detectedAmount = parsed;
-        confidence = 'high';
-        break;
+  // 1. First priority: Check written words (e.g. "Rupees Two Thousand Only")
+  const wordAmount = parseRupeesInWords(trimmed);
+  if (wordAmount > 0) {
+    detectedAmount = wordAmount;
+    confidence = 'high';
+  }
+
+  // 2. High-priority explicit total patterns
+  if (detectedAmount === 0) {
+    for (const pattern of TOTAL_AMOUNT_PATTERNS) {
+      const match = trimmed.match(pattern);
+      if (match && match[1]) {
+        const cleanNumStr = match[1].replace(/,/g, '');
+        const parsed = parseFloat(cleanNumStr);
+        if (isValidBillAmount(parsed, match[0])) {
+          detectedAmount = parsed;
+          confidence = 'high';
+          break;
+        }
       }
     }
   }
 
-  // If not matched directly across text, scan line-by-line looking for keywords and adjacent numbers
+  // 3. Scan line-by-line looking for Total / Amount Paid rows
   if (detectedAmount === 0) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].toLowerCase();
 
+      // Specifically check for final total keywords, IGNORE column headers like "product qty rate amount"
+      const isHeaderRow = line.includes('qty') && (line.includes('rate') || line.includes('product'));
+      if (isHeaderRow) continue;
+
       const isTotalLine =
+        line.includes('total amount') ||
+        line.includes('amount paid') ||
         line.includes('grand total') ||
-        line.includes('amount payable') ||
+        line.includes('net payable') ||
         line.includes('net amount') ||
         line.includes('bill total') ||
-        line.includes('total:') ||
+        line.includes('total fare') ||
         line.includes('paid to') ||
         line.includes('payment of') ||
-        line.includes('amount');
+        (line.startsWith('total') && !line.includes('tax') && !line.includes('sub'));
 
       if (isTotalLine) {
         // Extract numbers from this line
         const numbers = extractNumbersFromLine(lines[i]);
         if (numbers.length > 0) {
-          detectedAmount = numbers[numbers.length - 1]; // usually the right-most number on the total row
+          detectedAmount = numbers[numbers.length - 1]; // right-most number on the total row
           confidence = 'high';
           break;
         }
 
         // Or look at the very next line if numbers wrap
         if (i + 1 < lines.length) {
-          const nextNumbers = extractNumbersFromLine(lines[i + 1]);
-          if (nextNumbers.length > 0) {
-            detectedAmount = nextNumbers[0];
-            confidence = 'medium';
-            break;
+          const nextLine = lines[i + 1].toLowerCase();
+          if (!nextLine.includes('tax') && !nextLine.includes('cgst') && !nextLine.includes('sgst')) {
+            const nextNumbers = extractNumbersFromLine(lines[i + 1]);
+            if (nextNumbers.length > 0) {
+              detectedAmount = nextNumbers[nextNumbers.length - 1]; // pick the total amount, not the quantity
+              confidence = 'medium';
+              break;
+            }
           }
         }
       }
     }
   }
 
-  // If still not found, check lines with "total" alone (avoiding subtotal)
+  // 4. Check currency symbol lines (₹ or Rs.) - take the rightmost valid amount
   if (detectedAmount === 0) {
-    for (const line of lines) {
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
       const lower = line.toLowerCase();
-      if (lower.includes('total') && !lower.includes('sub') && !lower.includes('tax')) {
-        const numbers = extractNumbersFromLine(line);
-        if (numbers.length > 0) {
-          detectedAmount = numbers[numbers.length - 1];
-          confidence = 'medium';
-          break;
-        }
+      // Skip tax breakdown lines
+      if (lower.includes('cgst') || lower.includes('sgst') || lower.includes('igst') || lower.includes('tax amount')) {
+        continue;
       }
-    }
-  }
-
-  // Check currency symbol lines (₹ or Rs.)
-  if (detectedAmount === 0) {
-    for (const line of lines) {
       if (/[₹]|(?:\brs\.?\b)|(?:\binr\b)/i.test(line)) {
         const numbers = extractNumbersFromLine(line);
         if (numbers.length > 0) {
           const valid = numbers.filter((n) => isValidBillAmount(n, line));
           if (valid.length > 0) {
-            detectedAmount = Math.max(...valid);
+            detectedAmount = valid[valid.length - 1];
             confidence = 'medium';
             break;
           }
@@ -158,10 +169,14 @@ export function parseBillText(rawText: string): ParsedBillData {
     }
   }
 
-  // Fallback: If no label found, search for the maximum reasonable monetary amount on the bill
+  // 5. Fallback: Search for the highest reasonable monetary amount on the bill
   if (detectedAmount === 0) {
     const candidateAmounts: number[] = [];
     for (const line of lines) {
+      const lower = line.toLowerCase();
+      // Skip header rows and tax breakdown rows
+      if (lower.includes('qty') || lower.includes('cgst') || lower.includes('sgst')) continue;
+
       const numbers = extractNumbersFromLine(line);
       for (const num of numbers) {
         if (isValidBillAmount(num, line)) {
@@ -171,9 +186,8 @@ export function parseBillText(rawText: string): ParsedBillData {
     }
 
     if (candidateAmounts.length > 0) {
-      // Pick the highest number that isn't an outlier phone/pincode
       const filtered = candidateAmounts.filter(
-        (n) => n >= 5 && n <= 500000 && !isLikelyYear(n)
+        (n) => n >= 10 && n <= 500000 && !isLikelyYear(n)
       );
       if (filtered.length > 0) {
         detectedAmount = Math.max(...filtered);
@@ -182,19 +196,18 @@ export function parseBillText(rawText: string): ParsedBillData {
     }
   }
 
-  // 2. Extract Merchant
+  // 2. Extract Merchant (e.g. NAYARA ENERGY, FISHERMAN'S WHARF, etc.)
   let detectedMerchant = '';
   for (let i = 0; i < Math.min(lines.length, 6); i++) {
     const line = lines[i];
     const lower = line.toLowerCase();
 
-    // Skip generic headings
+    // Skip generic headings and sample text
     const isGeneric = GENERIC_HEADER_WORDS.some((h) => lower.includes(h));
     const hasPhone = PHONE_PATTERN.test(line);
     const hasGstin = GSTIN_PATTERN.test(line);
 
-    if (!isGeneric && !hasPhone && !hasGstin && line.length >= 3 && line.length <= 45) {
-      // Must contain letters, not just symbols/digits
+    if (!isGeneric && !hasPhone && !hasGstin && line.length >= 3 && line.length <= 50) {
       if (/[a-zA-Z]{3,}/.test(line)) {
         detectedMerchant = line
           .replace(/^[#*•\-_= ]+/, '')
@@ -208,7 +221,7 @@ export function parseBillText(rawText: string): ParsedBillData {
     detectedMerchant = 'Merchant Receipt';
   }
 
-  // 3. Extract Date
+  // 3. Extract Date (e.g. 23/09/2026)
   let detectedDate = '';
   const datePatterns = [
     /\b(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})\b/, // DD/MM/YYYY
@@ -235,6 +248,44 @@ export function parseBillText(rawText: string): ParsedBillData {
     rawText: trimmed,
     confidence,
   };
+}
+
+/**
+ * Parses written amounts like "Rupees Two Thousand Only" or "Two Thousand Five Hundred Rupees".
+ */
+function parseRupeesInWords(text: string): number {
+  const match = text.match(/(?:rupees|rs\.?)\s+([a-z\s]+?)\s+(?:only|\/-)/i) ||
+                text.match(/\(([a-z\s]+?)\s+(?:only|\/-)\)/i);
+  if (!match || !match[1]) return 0;
+
+  const words = match[1].toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/);
+  
+  const wordToNum: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
+    eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60,
+    seventy: 70, eighty: 80, ninety: 90,
+  };
+
+  let total = 0;
+  let current = 0;
+
+  for (const w of words) {
+    if (wordToNum[w]) {
+      current += wordToNum[w];
+    } else if (w === 'hundred') {
+      current = (current === 0 ? 1 : current) * 100;
+    } else if (w === 'thousand') {
+      total += (current === 0 ? 1 : current) * 1000;
+      current = 0;
+    } else if (w === 'lakh' || w === 'lac') {
+      total += (current === 0 ? 1 : current) * 100000;
+      current = 0;
+    }
+  }
+
+  total += current;
+  return total > 0 ? total : 0;
 }
 
 /**
