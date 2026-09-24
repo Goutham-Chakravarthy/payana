@@ -14,6 +14,7 @@ import {
   FileText,
   Image as ImageIcon,
   CheckCircle2,
+  PenLine,
 } from 'lucide-react';
 
 interface BillScannerProps {
@@ -27,63 +28,6 @@ interface BillScannerProps {
   onEnterManually: () => void;
   onCancel: () => void;
 }
-
-// Sample test receipts representing the realistic bills listed in Section 22
-const TEST_BILLS = [
-  {
-    name: "Fisherman's Wharf (Restaurant with CGST/SGST)",
-    merchant: "Fisherman's Wharf",
-    amount: 2840,
-    date: '2026-09-24',
-    rawText: `FISHERMAN'S WHARF
-PANJIM, GOA
-TABLE: 14 | GUESTS: 6
---------------------------------
-1x Butter Garlic Prawns   650.00
-2x Fish Curry Rice        800.00
-1x Crab Masala            750.00
-3x Fresh Lime Soda        270.00
---------------------------------
-SUBTOTAL                 2470.00
-CGST @ 2.5%                61.75
-SGST @ 2.5%                61.75
-SERVICE CHARGE @ 10%      246.50
---------------------------------
-GRAND TOTAL             ₹2840.00
-THANK YOU FOR VISITING!`,
-  },
-  {
-    name: 'Nature Basket (Retail Receipt with Total)',
-    merchant: "Nature's Basket",
-    amount: 1425,
-    date: '2026-09-23',
-    rawText: `NATURE'S BASKET LTD
-INVOICE NO: NB-98124
-DATE: 23-09-2026
---------------------------------
-SNACKS & CHIPS            320.00
-MINERAL WATER (4X)        120.00
-DRY FRUITS PACK           650.00
-COOKIES & BEVERAGES       335.00
---------------------------------
-TOTAL AMOUNT PAYABLE    ₹1425.00`,
-  },
-  {
-    name: 'VRL Travel (Bus/Ticket Bill)',
-    merchant: 'VRL Travels Intercity',
-    amount: 3200,
-    date: '2026-09-22',
-    rawText: `VRL LOGISTICS & TRAVELS
-BOOKING REF: VRL-BLR-0982
-PASSENGERS: 4 SEATS
-SERVICE: AIR-SUSPENSION SLEEPER
---------------------------------
-FARE PER SEAT             800.00
-CONVENIENCE FEE             0.00
-TOTAL FARE              ₹3200.00
-VALID FOR TRAVEL ON 22/09/2026`,
-  },
-];
 
 export const BillScanner: React.FC<BillScannerProps> = ({
   onScanComplete,
@@ -193,7 +137,7 @@ export const BillScanner: React.FC<BillScannerProps> = ({
       });
 
       setSelectedImage(result.originalImage);
-      setMerchant(result.merchant || 'Fisherman’s Wharf');
+      setMerchant(result.merchant || 'General Merchant');
       setAmount(result.amount);
       setAmountInput(result.amount > 0 ? String(result.amount) : '');
       setDate(result.date);
@@ -206,33 +150,6 @@ export const BillScanner: React.FC<BillScannerProps> = ({
       setErrorMessage(err?.message || "We couldn't read this bill. You can enter the amount manually.");
       setStage('error');
     }
-  };
-
-  // Quick preset loader for testing all bill types
-  const handleSelectSample = (sample: typeof TEST_BILLS[0]) => {
-    // Generate simple SVG receipt graphic as preview
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500">
-      <rect width="400" height="500" fill="#f8fafc" stroke="#e2e8f0" stroke-width="4"/>
-      <text x="200" y="40" font-family="monospace" font-size="16" font-weight="bold" text-anchor="middle" fill="#0f172a">${sample.merchant}</text>
-      <line x1="20" y1="60" x2="380" y2="60" stroke="#cbd5e1" stroke-dasharray="4"/>
-      <text x="30" y="90" font-family="monospace" font-size="12" fill="#475569">DATE: ${sample.date}</text>
-      <text x="30" y="110" font-family="monospace" font-size="12" fill="#475569">TYPE: VERIFIED BILL</text>
-      <line x1="20" y1="130" x2="380" y2="130" stroke="#cbd5e1"/>
-      <text x="30" y="180" font-family="monospace" font-size="13" fill="#334155">Items &amp; Service Charges</text>
-      <text x="30" y="240" font-family="monospace" font-size="14" font-weight="bold" fill="#0f172a">TOTAL PAYABLE</text>
-      <text x="370" y="240" font-family="monospace" font-size="16" font-weight="bold" text-anchor="end" fill="#047857">₹${sample.amount}</text>
-      <line x1="20" y1="260" x2="380" y2="260" stroke="#cbd5e1" stroke-dasharray="4"/>
-      <text x="200" y="300" font-family="monospace" font-size="11" text-anchor="middle" fill="#94a3b8">THANK YOU FOR YOUR VISIT</text>
-    </svg>`;
-    const dataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-
-    setSelectedImage(dataUrl);
-    setMerchant(sample.merchant);
-    setAmount(sample.amount);
-    setAmountInput(String(sample.amount));
-    setDate(sample.date);
-    setRawText(sample.rawText);
-    setStage('result-confirm');
   };
 
   const handleConfirmResult = () => {
@@ -263,14 +180,14 @@ export const BillScanner: React.FC<BillScannerProps> = ({
         onChange={handleFileChange}
       />
 
-      {/* STAGE 1: IDLE / ENTRY (Camera or Upload options) */}
+      {/* STAGE 1: IDLE / ENTRY (Camera or Upload options + Big Manual Entry Button) */}
       {stage === 'idle' && (
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-5">
           <div className="text-center max-w-sm mx-auto">
-            <div className="w-12 h-12 rounded-2xl bg-zinc-950 text-white flex items-center justify-center mx-auto mb-3 shadow-sm">
-              <Sparkles className="w-6 h-6 text-amber-300" />
+            <div className="w-11 h-11 rounded-2xl bg-zinc-950 text-white flex items-center justify-center mx-auto mb-2.5 shadow-sm">
+              <Sparkles className="w-5 h-5 text-amber-300" />
             </div>
-            <h3 className="text-lg font-black text-zinc-950 tracking-tight">
+            <h3 className="text-lg sm:text-xl font-black text-zinc-950 tracking-tight">
               Scan Bill Receipt
             </h3>
             <p className="text-xs text-zinc-500 mt-1">
@@ -279,69 +196,80 @@ export const BillScanner: React.FC<BillScannerProps> = ({
           </div>
 
           {/* Primary Action Buttons: Camera & Upload */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mx-auto">
             <button
               type="button"
               onClick={startCamera}
-              className="flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed border-zinc-300 hover:border-zinc-900 bg-zinc-50/60 hover:bg-zinc-100 transition-all cursor-pointer group"
+              className="flex flex-row sm:flex-col items-center justify-center gap-3 sm:gap-1.5 p-4 sm:p-5 rounded-2xl border-2 border-dashed border-zinc-300 hover:border-zinc-900 bg-zinc-50/60 hover:bg-zinc-100 transition-all cursor-pointer group"
             >
-              <div className="w-10 h-10 rounded-full bg-white shadow-xs flex items-center justify-center text-zinc-800 group-hover:scale-105 transition-transform mb-2">
+              <div className="w-10 h-10 rounded-full bg-white shadow-xs flex items-center justify-center text-zinc-800 group-hover:scale-105 transition-transform shrink-0">
                 <Camera className="w-5 h-5 text-zinc-900" />
               </div>
-              <span className="text-sm font-bold text-zinc-900">Take Photo</span>
-              <span className="text-[11px] text-zinc-500 mt-0.5">Use device camera</span>
+              <div className="text-left sm:text-center">
+                <div className="text-sm font-bold text-zinc-900">Take Photo</div>
+                <div className="text-[11px] text-zinc-500">Use device camera</div>
+              </div>
             </button>
 
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed border-zinc-300 hover:border-zinc-900 bg-zinc-50/60 hover:bg-zinc-100 transition-all cursor-pointer group"
+              className="flex flex-row sm:flex-col items-center justify-center gap-3 sm:gap-1.5 p-4 sm:p-5 rounded-2xl border-2 border-dashed border-zinc-300 hover:border-zinc-900 bg-zinc-50/60 hover:bg-zinc-100 transition-all cursor-pointer group"
             >
-              <div className="w-10 h-10 rounded-full bg-white shadow-xs flex items-center justify-center text-zinc-800 group-hover:scale-105 transition-transform mb-2">
+              <div className="w-10 h-10 rounded-full bg-white shadow-xs flex items-center justify-center text-zinc-800 group-hover:scale-105 transition-transform shrink-0">
                 <Upload className="w-5 h-5 text-zinc-900" />
               </div>
-              <span className="text-sm font-bold text-zinc-900">Upload Image</span>
-              <span className="text-[11px] text-zinc-500 mt-0.5">JPEG, PNG, or WebP</span>
+              <div className="text-left sm:text-center">
+                <div className="text-sm font-bold text-zinc-900">Upload Image</div>
+                <div className="text-[11px] text-zinc-500">JPEG, PNG, or WebP</div>
+              </div>
             </button>
           </div>
 
-          {/* Realistic Test Bills (Prompt Section 22) */}
-          <div className="bg-zinc-50 border border-zinc-200/80 rounded-2xl p-4 max-w-md mx-auto">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-2">
-              Try sample bill formats:
+          {/* Divider */}
+          <div className="relative max-w-lg mx-auto flex items-center justify-center">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-zinc-200" />
             </div>
-            <div className="space-y-1.5">
-              {TEST_BILLS.map((tb) => (
-                <button
-                  key={tb.name}
-                  type="button"
-                  onClick={() => handleSelectSample(tb)}
-                  className="w-full text-left p-2 rounded-xl bg-white hover:bg-zinc-100 border border-zinc-200 text-xs font-semibold text-zinc-800 flex items-center justify-between transition-colors cursor-pointer"
-                >
-                  <span className="truncate">{tb.name}</span>
-                  <span className="text-emerald-700 font-bold ml-2 shrink-0">
-                    ₹{tb.amount}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <span className="relative bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+              or
+            </span>
           </div>
 
-          {/* Bottom Manual Entry Fallback */}
-          <div className="pt-2 text-center border-t border-zinc-100 flex items-center justify-between">
+          {/* Large Prominent H2-Style Manual Entry Button */}
+          <div className="max-w-lg mx-auto">
+            <button
+              type="button"
+              onClick={onEnterManually}
+              className="w-full p-4 sm:p-5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white shadow-md hover:shadow-lg transition-all flex items-center justify-between group cursor-pointer"
+            >
+              <div className="flex items-center gap-3.5 text-left">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white/10 flex items-center justify-center text-amber-300 group-hover:scale-105 transition-transform shrink-0">
+                  <PenLine className="w-5 h-5 text-amber-300" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-black tracking-tight text-white">
+                    Enter Bill Manually
+                  </h2>
+                  <p className="text-xs text-zinc-300 mt-0.5">
+                    Type in the amount, merchant, and date directly
+                  </p>
+                </div>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-zinc-300 group-hover:translate-x-1 transition-transform shrink-0">
+                <ArrowRight className="w-4 h-4" />
+              </div>
+            </button>
+          </div>
+
+          {/* Bottom Cancel Action */}
+          <div className="pt-2 text-center border-t border-zinc-100">
             <button
               type="button"
               onClick={onCancel}
               className="text-xs font-semibold text-zinc-500 hover:text-zinc-800 cursor-pointer"
             >
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={onEnterManually}
-              className="text-xs font-bold text-zinc-900 hover:underline cursor-pointer"
-            >
-              Enter Manually Instead →
             </button>
           </div>
         </div>
