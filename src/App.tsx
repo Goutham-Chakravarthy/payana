@@ -91,30 +91,12 @@ export default function App() {
       ]);
 
       if (Array.isArray(remoteBills)) {
-        if (remoteBills.length > 0) {
-          setBills(remoteBills);
-          saveBills(remoteBills);
-        } else {
-          // If remote is currently empty, push existing local bills to Supabase cloud
-          const localBills = loadBills();
-          if (localBills.length > 0) {
-            console.log('[Supabase] Initializing remote database with local bills...');
-            for (const b of localBills) {
-              await saveBill(b);
-            }
-          }
-        }
+        setBills(remoteBills);
+        saveBills(remoteBills);
       }
-      if (Array.isArray(remoteSettlements) && remoteSettlements.length > 0) {
+      if (Array.isArray(remoteSettlements)) {
         setSavedSettlements(remoteSettlements);
         saveSettlements(remoteSettlements);
-      } else {
-        const localSettlements = loadSettlements();
-        if (localSettlements.length > 0) {
-          for (const s of localSettlements) {
-            await saveSettlement(s);
-          }
-        }
       }
       if (typeof remoteBudget === 'number' && remoteBudget > 0) {
         setTargetBudgetPaise(remoteBudget);
