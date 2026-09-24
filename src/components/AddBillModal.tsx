@@ -359,27 +359,15 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({
                         key={participant.id}
                         type="button"
                         onClick={() => toggleParticipant(participant.id)}
-                        className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
+                        className={`flex items-center justify-center p-2.5 rounded-xl border-2 transition-all cursor-pointer ${
                           isChecked
-                            ? 'border-zinc-900 bg-zinc-900/5 text-zinc-950 font-bold'
+                            ? 'border-zinc-900 bg-zinc-900/5 text-zinc-950'
                             : 'border-zinc-200 bg-white text-zinc-400 opacity-60 hover:opacity-90'
                         }`}
                       >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Avatar participant={participant} size="sm" />
-                          <span className="text-xs truncate">
-                            {participant.name}
-                          </span>
-                        </div>
-                        <div
-                          className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${
-                            isChecked
-                              ? 'bg-zinc-900 border-zinc-900 text-white'
-                              : 'border-zinc-300 bg-white'
-                          }`}
-                        >
-                          {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
-                        </div>
+                        <span className={`text-xs ${isChecked ? 'font-bold' : 'font-medium'}`}>
+                          {participant.name}
+                        </span>
                       </button>
                     );
                   })}
