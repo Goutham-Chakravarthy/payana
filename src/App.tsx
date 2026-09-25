@@ -51,9 +51,7 @@ export default function App() {
   const [savedSettlements, setSavedSettlements] = useState<Settlement[]>(() =>
     loadSettlements()
   );
-  const [viewingUserId, setViewingUserId] = useState<string | null>(() =>
-    loadViewingUser()
-  );
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [targetBudgetPaise, setTargetBudgetPaise] = useState<number>(() =>
     loadTripBudgetPaise()
   );
