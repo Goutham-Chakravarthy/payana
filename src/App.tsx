@@ -5,6 +5,7 @@ import {
   calculateNetBalances,
   calculateSettlement,
 } from './lib/settlement/calculateSettlement';
+import { exportToExcel } from './lib/exportExcel';
 import {
   loadBills,
   saveBills,
@@ -38,7 +39,7 @@ import { TripBudgetSummary } from './components/TripBudgetSummary';
 import { AddBillModal } from './components/AddBillModal';
 import { EditBillModal } from './components/EditBillModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
-import { ArrowRightLeft, Users, Receipt } from 'lucide-react';
+import { ArrowRightLeft, Users, Receipt, FileDown } from 'lucide-react';
 
 export default function App() {
   // 1. Auth & Mode State: Root URL / and ?mode=view are identical Read-Only Viewer Mode
@@ -64,14 +65,15 @@ export default function App() {
 
   const handleAdminLoginSuccess = () => {
     setStoredAdminStatus(true);
-    setIsAdmin(true);
     setIsAdminLoginOpen(false);
+    window.location.href = '/?mode=admin';
   };
 
   const handleLogoutAdmin = () => {
     setStoredAdminStatus(false);
-    setIsAdmin(false);
+    window.location.href = '/';
   };
+
 
   // 3. Supabase Initial Data Fetch & Realtime Sync
   const refreshRemoteData = useCallback(async () => {
@@ -226,7 +228,10 @@ export default function App() {
     }
   };
 
-  // Metrics for badges
+  const handleExportExcel = () => {
+    exportToExcel(bills, settlements, balances);
+  };
+
   const pendingSettlementsCount = settlements.filter(
     (s) => s.status === 'pending'
   ).length;
@@ -374,17 +379,32 @@ export default function App() {
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-zinc-200/80 bg-white/70 backdrop-blur-xs py-6 text-center text-xs text-zinc-500">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 font-medium">
             <span className="font-bold text-zinc-900">PAYANA</span>
             <span>·</span>
             <span>Minimalist Collaborative Bill Engine</span>
           </div>
-          <div className="text-zinc-400 text-[11px]">
-            Zero floating-point errors · Integer paise precision · Single group
+
+          <div className="flex items-center gap-3">
+            {!isReadOnly && (
+              <button
+                onClick={handleExportExcel}
+                disabled={bills.length === 0}
+                title={bills.length === 0 ? 'No bills to export' : 'Download full Excel report'}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-all shadow-sm hover:shadow-md active:scale-[0.97] cursor-pointer"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                Export to Excel
+              </button>
+            )}
+            <div className="text-zinc-400 text-[11px]">
+              Zero floating-point errors · Integer paise precision · Single group
+            </div>
           </div>
         </div>
       </footer>
+
 
       {/* Modals */}
       <AddBillModal
